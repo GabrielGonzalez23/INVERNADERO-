@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Invernadero Reforzado: Visualización Técnica</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #e0e0e0; font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-tap-highlight-color: transparent; }
+        
+        /* Panel de Información - Globo flotante */
+        #info-panel {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.97);
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            border: 2px solid #d32f2f; /* Borde rojo para denotar urgencia/cambio */
+            backdrop-filter: blur(8px);
+            pointer-events: none;
+            display: none;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 1000;
+            max-width: 300px;
+            min-width: 220px;
+        }
+        
+        #info-panel.visible {
+            display: block;
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+        
+        /* Flecha del globo */
+        #info-panel::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 10px 10px 0 10px;
+            border-color: #d32f2f transparent transparent transparent;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #info-panel h2 { 
+            margin: 0 0 12px 0; 
+            color: #d32f2f; 
+            font-size: 17px; 
+            font-weight: 700;
+            border-bottom: 2px solid #e0e0e0; 
+            padding-bottom: 8px; 
+        }
+
+        .row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 8px; 
+            font-size: 13px; 
+            gap: 10px;
+        }
+        .label { 
+            color: #555; 
+            font-weight: 600; 
+            flex-shrink: 0;
+        }
+        .val { 
+            color: #000; 
+            font-weight: 700; 
+            text-align: right; 
+            word-break: break-word;
+        }
+        .note { 
+            margin-top: 12px; 
+            font-size: 12px; 
+            color: #666; 
+            font-style: italic; 
+            background: #fff0f0; 
+            padding: 8px 10px; 
+            border-radius: 6px;
+            border-left: 3px solid #d32f2f;
+        }
+
+        /* --- Estilos para Modo Edición --- */
+        .edit-field { display: none; }
+
+        #info-panel.edit-mode #p-name-display,
+        #info-panel.edit-mode .val,
+        #info-panel.edit-mode #p-note-display,
+        #info-panel.edit-mode #btn-edit {
+            display: none;
+        }
+
+        #info-panel.edit-mode .edit-field {
+            display: block;
+            width: 100%;
+            margin-bottom: 8px;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+        #info-panel.edit-mode .row {
+            flex-wrap: wrap;
+        }
+        #info-panel.edit-mode .row .label {
+            width: 100%;
+            margin-bottom: 4px;
+        }
+        #info-panel.edit-mode .row .edit-field {
+            flex-grow: 1;
+        }
+
+        #panel-buttons {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        #panel-buttons button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        #btn-edit { background-color: #673ab7; color: white; }
+        #btn-edit:hover { background-color: #512da8; }
+        #btn-save { background-color: #4CAF50; color: white; }
+        #btn-save:hover { background-color: #45a049; }
+        #btn-cancel { background-color: #f44336; color: white; }
+        #btn-cancel:hover { background-color: #d32f2f; }
+
+
+        /* Instrucción Flotante */
+        #toast {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 22px;
+            border-radius: 30px;
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+            animation: toast-fade-in 0.5s 0.5s ease-out forwards;
+            border: 1px solid #ff0000;
+        }
+
+        @keyframes toast-fade-in {
+            to { opacity: 1; }
+        }
+
+
+        /* Leyenda */
+        #legend {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.95);
+            padding: 15px;
+            border-radius: 10px;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            backdrop-filter: blur(5px);
+        }
+        #legend h3 {
+            margin:0 0 10px 0; 
+            font-size:16px; 
+            color: #333;
+        }
+        .leg-item { margin-bottom: 5px; font-size: 13px; display: flex; align-items: center; color: #333; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; border: 1px solid #ccc; }
+
+        /* Rosa de Vientos */
+        #compass {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            pointer-events: none;
+            transform-origin: center;
+            backdrop-filter: blur(5px);
+            z-index: 10;
+        }
+        .compass-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            transform-origin: center;
+        }
+        .north {
+            border-width: 0 10px 30px 10px;
+            border-color: transparent transparent #d32f2f transparent;
+            transform: translate(-50%, -100%) translateY(5px);
+        }
+        .south {
+            border-width: 30px 10px 0 10px;
+            border-color: #555 transparent transparent transparent;
+            transform: translate(-50%, 0%) translateY(-5px);
+        }
+        .compass-letter {
+            position: absolute;
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+        #letter-n { top: 2px; left: 50%; transform: translateX(-50%); }
+        #letter-s { bottom: 2px; left: 50%; transform: translateX(-50%); }
+        #letter-w { top: 50%; left: 5px; transform: translateY(-50%); }
+        #letter-e { top: 50%; right: 5px; transform: translateY(-50%); }
+
+        /* --- Media Queries para Responsividad --- */
+
+        /* Para Tablets (hasta 1024px) */
+        @media (max-width: 1024px) {
+            #legend {
+                transform: scale(0.9);
+                transform-origin: top left;
+            }
+            #compass {
+
+            }
+            #toast {
+                bottom: 25px;
+            }
+        }
+
+        /* Para Teléfonos Móviles (hasta 767px) */
+        @media (max-width: 767px) {
+            #info-panel {
+                max-width: 88vw; /* Un poco más de ancho en pantallas chicas */
+                font-size: 13px;
+                padding: 14px 18px;
+            }
+            #info-panel h2 {
+                font-size: 16px;
+            }
+            .row {
+                font-size: 12px;
+            }
+            .note {
+                font-size: 11px;
+            }
+
+            #legend {
+                transform: scale(0.8);
+                transform-origin: top left;
+                top: 15px; 
+                left: 15px;
+            }
+            #toast {
+                font-size: 13px;
+                padding: 10px 18px;
+                bottom: 60px; /* Sube el toast para no estar tan pegado abajo en móviles */
+                max-width: 90%;
+                text-align: center;
+            }
+        }
+        
+        /* Ajustes finos para pantallas muy pequeñas (hasta 480px) */
+         @media (max-width: 480px) {
+            #legend {
+               display: none; /* Ocultar la leyenda en pantallas muy chicas para no estorbar */
+            }
+            #toast {
+                font-size: 12px;
+                padding: 8px 16px;
+                bottom: 50px;
+            }
+            #compass {
+
+            }
+         }
+    </style>
+</head>
+<body>
+
+    <div id="compass">
+        <div class="compass-arrow north"></div>
+        <div class="compass-arrow south"></div>
+        <div class="compass-letter" id="letter-n">N</div>
+        <div class="compass-letter" id="letter-s">S</div>
+        <div class="compass-letter" id="letter-w">O</div>
+        <div class="compass-letter" id="letter-e">E</div>
+    </div>
+
+    <div id="legend">
+        <h3>Componentes</h3>
+        <div class="leg-item"><span class="dot" style="background:#ff0000; border:2px solid black;"></span> <b>REFUERZO ESTRUCTURAL</b></div>
+        <div class="leg-item"><span class="dot" style="background:#555555;"></span> Estructura Principal</div>
+        <div class="leg-item"><span class="dot" style="background:#ff9800;"></span> Ventilación Cenital</div>
+        <div class="leg-item"><span class="dot" style="background:#03A9F4;"></span> Cultivo Hidropónico</div>
+    </div>
+
+    <div id="info-panel">
+        <h2 id="p-name-display">Invernadero</h2>
+        <input type="text" id="p-name-edit" class="edit-field" />
+
+        <div class="row">
+            <span class="label">Tipo:</span> 
+            <span class="val" id="p-type-display">-</span>
+            <input type="text" id="p-type-edit" class="edit-field" />
+        </div>
+        <div class="row">
+            <span class="label">Material:</span> 
+            <span class="val" id="p-mat-display">-</span>
+            <input type="text" id="p-mat-edit" class="edit-field" />
+        </div>
+        <div class="row">
+            <span class="label">Medida:</span> 
+            <span class="val" id="p-dim-display">-</span>
+            <input type="text" id="p-dim-edit" class="edit-field" />
+        </div>
+        <div class="note" id="p-note-display">Selecciona cualquier elemento para ver detalles.</div>
+        <textarea id="p-note-edit" class="edit-field"></textarea>
+
+        <div id="panel-buttons">
+            <button id="btn-edit">Editar</button>
+            <button id="btn-save" class="edit-field">Guardar</button>
+            <button id="btn-cancel" class="edit-field">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="toast">👆 Toca los REFUERZOS ROJOS para ver detalles técnicos</div>
+
+    <script>
+        // 1. ESCENA
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xe0e0e0);
+        scene.fog = new THREE.Fog(0xe0e0e0, 40, 150);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(15, 10, 30); // Cámara más cerca para ver los refuerzos
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, 2, 0);
+
+        // Luces
+        const ambLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(20, 50, 20);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+        const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        dirLight2.position.set(-20, 30, -20);
+        scene.add(dirLight2);
+
+        // Suelo
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0xcccccc }));
+        plane.rotation.x = -Math.PI / 2;
+        plane.position.y = -0.05;
+        plane.receiveShadow = true;
+        scene.add(plane);
+        scene.add(new THREE.GridHelper(100, 50, 0x999999, 0xbbbbbb));
+
+        // --- MATERIALES ---
+        const materials = {
+            PTR: new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.4 }),
+            ventana: new THREE.MeshStandardMaterial({ color: 0xff9800 }),
+            puerta: new THREE.MeshStandardMaterial({ color: 0x333333 }),
+            hitbox: new THREE.MeshBasicMaterial({ visible: false }), // Ocultar hitboxes
+            refuerzo: new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.3, emissive: 0x330000 }), // ROJO INTENSO
+            secciones: [
+                new THREE.MeshStandardMaterial({ color: 0x03A9F4 }), // S1
+                new THREE.MeshStandardMaterial({ color: 0xCDDC39 }), // S2
+                new THREE.MeshStandardMaterial({ color: 0x00BCD4 }), // S3
+                new THREE.MeshStandardMaterial({ color: 0xBA68C8 }), // S4
+                new THREE.MeshStandardMaterial({ color: 0xF44336 })  // S5
+            ]
+        };
+        
+        const colors = {
+            rojo: 0xd32f2f,
+            azul: 0x1976d2,
+            verde: 0x2e7d32,
+            morado: 0x9c27b0,
+            tensor: 0xff0000,
+            dorado: 0xffc107,
+            highlight: 0xffff00
+        };
+
+        // --- DATOS ---
+        const config = {
+            ancho: 17.4,
+            largo: 20,
+            altoPoste: 2,
+            altoCentro: 2.5,
+            numArcos: 9,
+            bedWidth: 1.2,
+            bedLength: 6.0,
+            aisleWidth: 1.0,
+            bedHeight: 0.7,
+            numRowsX: 7,
+            bedsPerCol: 3,
+            sectionSizes: [5, 4, 4, 4, 4]
+        };
+        
+        config.separacion = config.largo / (config.numArcos - 1);
+        const interactables = [];
+
+        // --- FUNCIONES CONSTRUCTORAS ---
+        
+        function crearPTR(p1, p2, radio, material, datos) {
+            const group = new THREE.Group();
+            const path = new THREE.LineCurve3(p1, p2);
+            
+            // Visual
+            const geoVisual = new THREE.TubeGeometry(path, 1, radio, 8, false);
+            const mesh = new THREE.Mesh(geoVisual, material.clone());
+            group.add(mesh);
+            
+            // Hitbox más grueso
+            const geoHit = new THREE.TubeGeometry(path, 1, Math.max(0.3, radio*3), 4, false);
+            const hitbox = new THREE.Mesh(geoHit, materials.hitbox);
+            hitbox.userData = {
+                ...datos,
+                isPTR: true,
+                visualObj: mesh,
+                originalColor: material.color.getHex()
+            };
+            interactables.push(hitbox);
+            group.add(hitbox);
+            scene.add(group);
+            return group;
+        }
+
+        function crearCable(p1, p2, colorHex, datos) {
+            // Visual
+            const matLine = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 3 });
+            const geoLine = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+            const line = new THREE.Line(geoLine, matLine);
+            scene.add(line);
+            
+            // Hitbox grueso
+            const path = new THREE.LineCurve3(p1, p2);
+            const geoTube = new THREE.TubeGeometry(path, 1, 0.3, 4, false);
+            const hitbox = new THREE.Mesh(geoTube, materials.hitbox);
+            hitbox.userData = {
+                ...datos,
+                isCable: true,
+                visualObj: line,
+                originalColor: colorHex
+            };
+            interactables.push(hitbox);
+            scene.add(hitbox);
+        }
+
+        function crearTensor(pos, datos) {
+            // Visual
+            const geoVisual = new THREE.SphereGeometry(0.20, 16, 16);
+            const matTensor = new THREE.MeshStandardMaterial({ color: colors.tensor });
+            const mesh = new THREE.Mesh(geoVisual, matTensor);
+            mesh.position.copy(pos);
+            
+            // Hitbox
+            const geoHit = new THREE.SphereGeometry(0.6, 8, 8);
+            const hitbox = new THREE.Mesh(geoHit, materials.hitbox);
+            hitbox.position.copy(pos);
+            hitbox.userData = {
+                ...datos,
+                type: "Tensor",
+                visualObj: mesh
+            };
+            interactables.push(hitbox);
+            scene.add(mesh, hitbox);
+        }
+        
+        function crearArcoCurvo(curva, radio, material, datos) {
+            const group = new THREE.Group();
+            
+            // Visual
+            const geoArco = new THREE.TubeGeometry(curva, 20, radio, 8, false);
+            const meshArco = new THREE.Mesh(geoArco, material.clone());
+            group.add(meshArco);
+            
+            // Hitbox
+            const geoHit = new THREE.TubeGeometry(curva, 10, 0.4, 4, false);
+            const hitbox = new THREE.Mesh(geoHit, materials.hitbox);
+            hitbox.userData = {
+                ...datos,
+                isPTR: true,
+                visualObj: meshArco,
+                originalColor: material.color.getHex()
+            };
+            interactables.push(hitbox);
+            group.add(hitbox);
+            scene.add(group);
+        }
+        
+        function crearCurvaGarra(curva, radio, material, datos) {
+            const group = new THREE.Group();
+            const geo = new THREE.TubeGeometry(curva, 15, radio, 8, false);
+            const mesh = new THREE.Mesh(geo, material.clone());
+            group.add(mesh);
+            
+            const geoHit = new THREE.TubeGeometry(curva, 8, 0.4, 4, false);
+            const hitbox = new THREE.Mesh(geoHit, materials.hitbox);
+            hitbox.userData = {
+                ...datos,
+                isPTR: true,
+                visualObj: mesh,
+                originalColor: material.color.getHex()
+            };
+            interactables.push(hitbox);
+            group.add(hitbox);
+            scene.add(group);
+        }
+
+        // --- ESTRUCTURA ---
+        const { ancho, largo, altoPoste, altoCentro, numArcos, separacion } = config;
+        
+        for (let i = 0; i < numArcos; i++) {
+            const z = (i * separacion) - (largo / 2);
+            const nombre = `Arco ${i + 1}`;
+
+            const pIzqTope = new THREE.Vector3(-ancho/2, altoPoste, z);
+            const pDerTope = new THREE.Vector3(ancho/2, altoPoste, z);
+            const pCenTope = new THREE.Vector3(0, altoCentro, z);
+
+            crearPTR(new THREE.Vector3(-ancho/2, 0, z), pIzqTope, 0.05, materials.PTR, { name: nombre, type: "Poste Lateral", mat: "PTR 2x2", dim: "2.4m", note: "Soporte principal." });
+            crearPTR(new THREE.Vector3(ancho/2, 0, z), pDerTope, 0.05, materials.PTR, { name: nombre, type: "Poste Lateral", mat: "PTR 2x2", dim: "2.4m", note: "Soporte principal." });
+            crearPTR(new THREE.Vector3(0, 0, z), pCenTope, 0.05, materials.PTR, { name: nombre, type: "Poste Central", mat: "PTR 2x2", dim: "2.9m", note: "Base V." });
+
+            // --- AQUI ESTAN TUS REFUERZOS NUEVOS (MEMECHAS) ---
+            const lenRef = 0.7; // 70cm de largo del refuerzo proyectado
+            const bajadaPoste = 0.7; // Punto de soldadura en el poste (hacia abajo)
+            
+            // Refuerzo Izquierdo (Rojo)
+            crearPTR(
+                new THREE.Vector3(-ancho/2, altoPoste - bajadaPoste, z), // Del poste
+                new THREE.Vector3(-ancho/2 + lenRef, altoPoste + 0.3, z), // Al arco
+                0.035, // Grosor visible
+                materials.refuerzo,
+                { name: "REFUERZO ESTRUCTURAL", type: "Memecha / Cartela", mat: "PTR 1\" Cal 16", dim: "0.80m", note: "Corrección de balanceo lateral (Urgente)" }
+            );
+
+            // Refuerzo Derecho (Rojo)
+            crearPTR(
+                new THREE.Vector3(ancho/2, altoPoste - bajadaPoste, z), // Del poste
+                new THREE.Vector3(ancho/2 - lenRef, altoPoste + 0.3, z), // Al arco
+                0.035, // Grosor visible
+                materials.refuerzo,
+                { name: "REFUERZO ESTRUCTURAL", type: "Memecha / Cartela", mat: "PTR 1\" Cal 16", dim: "0.80m", note: "Corrección de balanceo lateral (Urgente)" }
+            );
+            // ----------------------------------------------------
+
+            const pControl = new THREE.Vector3(0, 6.8, z);
+            const curva = new THREE.QuadraticBezierCurve3(pIzqTope, pControl, pDerTope);
+            crearArcoCurvo(curva, 0.05, materials.PTR, { name: nombre, type: "Arco", mat: "PTR 2x2", dim: "18m", note: "Limpio." });
+
+            const vIzq = curva.getPoint(1 - 0.586);
+            const vDer = curva.getPoint(0.586);
+            crearPTR(pCenTope, vIzq, 0.03, materials.PTR, { name: nombre, type: "Brazo V", mat: "PTR 2x2", dim: "2.10m", note: "Soldado." });
+            crearPTR(pCenTope, vDer, 0.03, materials.PTR, { name: nombre, type: "Brazo V", mat: "PTR 2x2", dim: "2.10m", note: "Soldado." });
+
+            // Ventana Garra
+            const cumbreArcoCentro = curva.getPoint(0.5); 
+            const inicioVertical = new THREE.Vector3(0, cumbreArcoCentro.y, z);
+            const finVertical = new THREE.Vector3(0, cumbreArcoCentro.y + 1.0, z);
+            crearPTR(inicioVertical, finVertical, 0.03, materials.ventana, { name: nombre, type: "Ventana Vert.", mat: "PTR 1.5", dim: "1.0m", note: "Apertura." });
+
+            const controlCurvaGarra = new THREE.Vector3(1.5, cumbreArcoCentro.y + 1.2, z); 
+            const finCurvaGarra = curva.getPoint(0.75); 
+            const curvaGarra = new THREE.QuadraticBezierCurve3(finVertical, controlCurvaGarra, finCurvaGarra);
+            crearCurvaGarra(curvaGarra, 0.03, materials.ventana, { name: nombre, type: "Ventana Garra", mat: "PTR 1.5", dim: "2.0m", note: "Techo." });
+        }
+        
+        // Largueros
+        const yLargueroArco = 4.35; 
+        crearPTR(new THREE.Vector3(0, yLargueroArco, -largo/2), new THREE.Vector3(0, yLargueroArco, largo/2), 0.04, materials.PTR, { name: "Estructura", type: "Larguero", mat: "PTR 1.5", dim: "20m", note: "-" });
+        const yLargueroGarra = yLargueroArco + 1.1; 
+        crearPTR(new THREE.Vector3(0.2, yLargueroGarra, -largo/2), new THREE.Vector3(0.2, yLargueroGarra, largo/2), 0.04, materials.ventana, { name: "Estructura", type: "Larguero Garra", mat: "PTR 1.5", dim: "20m", note: "-" });
+        
+        // PUERTA LATERAL
+        const zDoorCenter = (-largo/2) + separacion/2; 
+        const doorWidth = 1.5;
+        const xL_Door = -ancho/2;
+        crearPTR(new THREE.Vector3(xL_Door, 0, zDoorCenter - doorWidth/2), new THREE.Vector3(xL_Door, 2.0, zDoorCenter - doorWidth/2), 0.05, materials.puerta, { name: "Puerta", type: "Marco", mat: "PTR 2x2", dim: "2m", note: "-" });
+        crearPTR(new THREE.Vector3(xL_Door, 0, zDoorCenter + doorWidth/2), new THREE.Vector3(xL_Door, 2.0, zDoorCenter + doorWidth/2), 0.05, materials.puerta, { name: "Puerta", type: "Marco", mat: "PTR 2x2", dim: "2m", note: "-" });
+        crearPTR(new THREE.Vector3(xL_Door, 2.0, zDoorCenter - doorWidth/2), new THREE.Vector3(xL_Door, 2.0, zDoorCenter + doorWidth/2), 0.05, materials.puerta, { name: "Puerta", type: "Dintel", mat: "PTR 2x2", dim: "1.5m", note: "-" });
+
+        // --- CAMAS OPTIMIZADAS ---
+        const { bedWidth, bedLength, aisleWidth, bedHeight, numRowsX, bedsPerCol, sectionSizes } = config;
+        const totalWidthBeds = numRowsX * bedWidth + (numRowsX - 1) * aisleWidth;
+        const startX = -totalWidthBeds / 2 + bedWidth / 2;
+        const startZ = -((bedsPerCol * bedLength + (bedsPerCol - 1) * 0.8) / 2) + bedLength / 2;
+        let bedCounter = 0;
+
+        const hitGeo = new THREE.BoxGeometry(bedWidth, 0.5, bedLength);
+        const legGeo = new THREE.CylinderGeometry(0.05, 0.05, bedHeight, 8);
+
+        // Geometría y material base para las hojas de lechuga (se clonará)
+        const leafGeo = new THREE.PlaneGeometry(0.15, 0.15);
+        const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x8BC34A, side: THREE.DoubleSide, roughness: 0.8 });
+        const dummy = new THREE.Object3D();
+
+        for (let r = 0; r < numRowsX; r++) {
+            for (let c = 0; c < bedsPerCol; c++) {
+                const x = startX + r * (bedWidth + aisleWidth);
+                const z = startZ + c * (bedLength + 0.8);
+
+                let currentSection = 0;
+                let bedsCounted = 0;
+                for (let i = 0; i < sectionSizes.length; i++) {
+                    bedsCounted += sectionSizes[i];
+                    if (bedCounter < bedsCounted) {
+                        currentSection = i;
+                        break;
+                    }
+                }
+
+                const matSeccion = materials.secciones[currentSection];
+                const nombreSeccion = `Sección ${currentSection + 1}`;
+
+                // --- Creación de Cama con Tubos y Lechugas Instanciadas ---
+                const bedGroup = new THREE.Group();
+
+                // 1. Crear Tubos
+                const numTubes = 7;
+                const tubeSpacing = bedWidth / numTubes;
+                const tubeRadius = tubeSpacing * 0.45;
+                const tubeGeo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, bedLength, 8);
+                const bedMaterial = matSeccion.clone();
+
+                for (let j = 0; j < numTubes; j++) {
+                    const tube = new THREE.Mesh(tubeGeo, bedMaterial);
+                    const tubeX = (j * tubeSpacing) - (bedWidth / 2) + (tubeSpacing / 2);
+                    tube.rotation.x = Math.PI / 2;
+                    tube.position.set(tubeX, 0, 0);
+                    bedGroup.add(tube);
+                }
+                
+                // 2. Crear Lechugas con InstancedMesh
+                const lettuceSpacing = 0.22;
+                const numLettucesPerTube = Math.floor(bedLength / lettuceSpacing);
+                const numLeavesPerLettuce = 5;
+                const totalLeavesInBed = numTubes * numLettucesPerTube * numLeavesPerLettuce;
+                
+                const lettuceInstancedMesh = new THREE.InstancedMesh(leafGeo, leafMaterial.clone(), totalLeavesInBed);
+                let leafIndex = 0;
+
+                for (let j = 0; j < numTubes; j++) {
+                    const tubeX = (j * tubeSpacing) - (bedWidth / 2) + (tubeSpacing / 2);
+                    for (let k = 0; k < numLettucesPerTube; k++) {
+                        const lettuceZ = (k * lettuceSpacing) - (bedLength / 2) + (lettuceSpacing / 2);
+                        
+                        for (let l = 0; l < numLeavesPerLettuce; l++) {
+                            dummy.position.set(tubeX, tubeRadius + 0.05, lettuceZ);
+                            dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                            dummy.updateMatrix();
+                            lettuceInstancedMesh.setMatrixAt(leafIndex++, dummy.matrix);
+                        }
+                    }
+                }
+                lettuceInstancedMesh.instanceMatrix.needsUpdate = true;
+                bedGroup.add(lettuceInstancedMesh);
+
+                // Posicionar el grupo entero de la cama
+                bedGroup.position.set(x, bedHeight, z);
+                scene.add(bedGroup);
+
+                // 3. Hitbox
+                const hitBox = new THREE.Mesh(hitGeo, materials.hitbox);
+                hitBox.position.set(x, bedHeight, z);
+                hitBox.userData = {
+                    name: `Cama ${bedCounter + 1}`,
+                    type: nombreSeccion,
+                    mat: "Hidroponía NFT",
+                    dim: `${bedWidth}x${bedLength}m`,
+                    note: "Cama con 7 tubos",
+                    isBed: true,
+                    visualObj: bedGroup,
+                    originalColor: matSeccion.color.getHex()
+                };
+                interactables.push(hitBox);
+                scene.add(hitBox);
+
+                // 4. Patas
+                const legOffsetX = bedWidth / 2 - 0.1;
+                const legOffsetZ = bedLength / 2 - 0.5;
+                const legPositions = [
+                    [x - legOffsetX, z - legOffsetZ], [x + legOffsetX, z - legOffsetZ],
+                    [x - legOffsetX, z + legOffsetZ], [x + legOffsetX, z + legOffsetZ]
+                ];
+                legPositions.forEach(([lx, lz]) => {
+                    const leg = new THREE.Mesh(legGeo, materials.PTR);
+                    leg.position.set(lx, bedHeight / 2, lz);
+                    scene.add(leg);
+                });
+
+                bedCounter++;
+            }
+        }
+
+        // --- CABLES ---
+        const xL = -ancho/2, xR = ancho/2;
+        const reinforcedBays = [0, 2, 5, 7];
+        const zPos = Array.from({length: numArcos}, (_, i) => (i * separacion) - largo/2);
+
+        // ZIG ZAG DERECHA
+        for (let i = 0; i < numArcos - 1; i += 2) {
+            const bayData = { name: "ZigZag", type: "Cable", mat: "3/16", dim: "-", note: "Refuerzo Lateral" };
+            crearCable(new THREE.Vector3(xR, altoPoste, zPos[i]), new THREE.Vector3(xR, 0, zPos[i+1]), colors.azul, bayData);
+            if (zPos[i+2]) {
+                crearCable(new THREE.Vector3(xR, 0, zPos[i+1]), new THREE.Vector3(xR, altoPoste, zPos[i+2]), colors.azul, bayData);
+            }
+            crearTensor(new THREE.Vector3(xR, 0.2, zPos[i+1]), {name:"Tensor", type:"Tensor", mat:"3/8", dim:"-", note:"Anclaje"});
+        }
+        
+        // ZIG ZAG IZQUIERDA (Corregido para ser simétrico)
+        for (let i = 0; i < numArcos - 1; i += 2) {
+            const bayData = { name: "ZigZag", type: "Cable", mat: "3/16", dim: "-", note: "Refuerzo Lateral" };
+            crearCable(new THREE.Vector3(xL, altoPoste, zPos[i]), new THREE.Vector3(xL, 0, zPos[i+1]), colors.azul, bayData);
+            if (zPos[i+2]) {
+                crearCable(new THREE.Vector3(xL, 0, zPos[i+1]), new THREE.Vector3(xL, altoPoste, zPos[i+2]), colors.azul, bayData);
+            }
+            crearTensor(new THREE.Vector3(xL, 0.2, zPos[i+1]), {name:"Tensor", type:"Tensor", mat:"3/8", dim:"-", note:"Anclaje"});
+        }
+
+        // Refuerzo X entre Arco 4 y 5
+        const bayData45 = { name: "Refuerzo X", type: "Cable", mat: "3/16", dim: "-", note: "Refuerzo Adicional" };
+        crearCable(new THREE.Vector3(xR, 0, zPos[3]), new THREE.Vector3(xR, altoPoste, zPos[4]), colors.azul, bayData45);
+        crearCable(new THREE.Vector3(xL, 0, zPos[3]), new THREE.Vector3(xL, altoPoste, zPos[4]), colors.azul, bayData45);
+
+        // TECHO (Refuerzos en X)
+        reinforcedBays.forEach(i => {
+            if (i < numArcos - 1) {
+                const vData = { name: "Techo", type: "Refuerzo X", mat: "3/16", dim: "-", note: "Estabilidad" };
+                crearCable(new THREE.Vector3(xL, altoPoste, zPos[i]), new THREE.Vector3(0, altoCentro, zPos[i+1]), colors.verde, vData);
+                crearCable(new THREE.Vector3(0, altoCentro, zPos[i]), new THREE.Vector3(xL, altoPoste, zPos[i+1]), colors.verde, vData);
+                crearCable(new THREE.Vector3(xR, altoPoste, zPos[i]), new THREE.Vector3(0, altoCentro, zPos[i+1]), colors.verde, vData);
+                crearCable(new THREE.Vector3(0, altoCentro, zPos[i]), new THREE.Vector3(xR, altoPoste, zPos[i+1]), colors.verde, vData);
+            }
+        });
+
+        // ANCLAJES
+        const zIni = -largo/2, zFin = largo/2;
+        const distAnclaje = 5.0;
+        const xMuertoIzq = -4.35, xMuertoDer = 4.35;
+        const ancData = { name: "Retenida", type: "Cable Anclaje", mat: "3/16", dim: "5m", note: "Tensión Externa" };
+        const cenData = { name: "Refuerzo", type: "Cable Central", mat: "3/16", dim: "-", note: "Pirámide Estabilidad" };
+
+        // Anclajes Inicio
+        crearCable(new THREE.Vector3(xL, altoPoste, zIni), new THREE.Vector3(xMuertoIzq, 0, zIni - distAnclaje), colors.rojo, ancData);
+        crearTensor(new THREE.Vector3(xMuertoIzq, 0.2, zIni - distAnclaje), {name:"Tensor Muerto", type:"Tensor", mat:"3/8", dim:"-", note:"Anclaje"});
+        crearCable(new THREE.Vector3(xR, altoPoste, zIni), new THREE.Vector3(xMuertoDer, 0, zIni - distAnclaje), colors.rojo, ancData);
+        crearTensor(new THREE.Vector3(xMuertoDer, 0.2, zIni - distAnclaje), {name:"Tensor Muerto", type:"Tensor", mat:"3/8", dim:"-", note:"Anclaje"});
+        crearCable(new THREE.Vector3(0, altoCentro, zIni), new THREE.Vector3(xMuertoIzq, 0, zIni - distAnclaje), colors.dorado, cenData);
+        crearCable(new THREE.Vector3(0, altoCentro, zIni), new THREE.Vector3(xMuertoDer, 0, zIni - distAnclaje), colors.dorado, cenData);
+
+        // Anclajes Final
+        crearCable(new THREE.Vector3(xL, altoPoste, zFin), new THREE.Vector3(xMuertoIzq, 0, zFin + distAnclaje), colors.rojo, ancData);
+        crearTensor(new THREE.Vector3(xMuertoIzq, 0.2, zFin + distAnclaje), {name:"Tensor Muerto", type:"Tensor", mat:"3/8", dim:"-", note:"Anclaje"});
+        crearCable(new THREE.Vector3(xR, altoPoste, zFin), new THREE.Vector3(xMuertoDer, 0, zFin + distAnclaje), colors.rojo, ancData);
+        crearTensor(new THREE.Vector3(xMuertoDer, 0.2, zFin + distAnclaje), {name:"Tensor Muerto", type:"Tensor", mat:"3/8", dim:"-", note:"Anclaje"});
+        crearCable(new THREE.Vector3(0, altoCentro, zFin), new THREE.Vector3(xMuertoIzq, 0, zFin + distAnclaje), colors.dorado, cenData);
+        crearCable(new THREE.Vector3(0, altoCentro, zFin), new THREE.Vector3(xMuertoDer, 0, zFin + distAnclaje), colors.dorado, cenData);
+
+        // Líneas Perimetrales
+        crearCable(new THREE.Vector3(xL, altoPoste, zIni), new THREE.Vector3(xL, altoPoste, zFin), colors.morado, {name:"Perímetro", type:"Cable Longitudinal", mat:"3/16", dim:"20m", note:"Estructura"});
+        crearCable(new THREE.Vector3(xR, altoPoste, zIni), new THREE.Vector3(xR, altoPoste, zFin), colors.morado, {name:"Perímetro", type:"Cable Longitudinal", mat:"3/16", dim:"20m", note:"Estructura"});
+
+        // --- INTERACCIÓN CON GLOBO FLOTANTE ---
+        const raycaster = new THREE.Raycaster();
+        raycaster.params.Line.threshold = 0.5;
+        raycaster.params.Points.threshold = 0.5;
+        const mouse = new THREE.Vector2();
+        let selectedObj = null;
+
+        function restaurarColor(obj) {
+            if (!obj || !obj.userData) return;
+            
+            if (obj.userData.isBed && obj.userData.visualObj) {
+                obj.userData.visualObj.children.forEach(child => {
+                    if (child.isMesh || child.isInstancedMesh) {
+                        child.material.emissive.setHex(0x000000);
+                    }
+                });
+            } else if (obj.userData.isCable && obj.userData.visualObj) {
+                obj.userData.visualObj.material.color.setHex(obj.userData.originalColor);
+            } else if (obj.userData.type === "Tensor" && obj.userData.visualObj) {
+                obj.userData.visualObj.material.color.setHex(colors.tensor);
+            } else if (obj.userData.isPTR && obj.userData.visualObj) {
+                if (obj.userData.originalColor !== undefined) {
+                    obj.userData.visualObj.material.color.setHex(obj.userData.originalColor);
+                }
+                obj.userData.visualObj.material.emissive.setHex(0x000000);
+            }
+        }
+
+        function resaltarObjeto(obj) {
+            if (!obj || !obj.userData) return;
+            
+            if (obj.userData.isBed && obj.userData.visualObj) {
+                obj.userData.visualObj.children.forEach(child => {
+                    if (child.isMesh || child.isInstancedMesh) {
+                        child.material.emissive.setHex(0x666666);
+                    }
+                });
+            } else if (obj.userData.isCable && obj.userData.visualObj) {
+                obj.userData.visualObj.material.color.setHex(colors.highlight);
+            } else if (obj.userData.type === "Tensor" && obj.userData.visualObj) {
+                obj.userData.visualObj.material.color.setHex(colors.highlight);
+            } else if (obj.userData.isPTR && obj.userData.visualObj) {
+                obj.userData.visualObj.material.emissive.setHex(0x666666);
+            }
+        }
+
+        function posicionarGlobo(screenX, screenY) {
+            const infoPanel = document.getElementById('info-panel');
+            
+            // Forzar display para obtener dimensiones
+            infoPanel.style.display = 'block';
+            
+            const panelWidth = infoPanel.offsetWidth || 250;
+            const panelHeight = infoPanel.offsetHeight || 200;
+            
+            // Posicionar arriba del click/touch
+            let left = screenX - panelWidth / 2;
+            let top = screenY - panelHeight - 60;
+            
+            // Ajustar si se sale de la pantalla
+            const margin = 15;
+            if (left < margin) left = margin;
+            if (left + panelWidth > window.innerWidth - margin) {
+                left = window.innerWidth - panelWidth - margin;
+            }
+            if (top < margin) {
+                top = screenY + 40;
+            }
+            
+            infoPanel.style.left = `${left}px`;
+            infoPanel.style.top = `${top}px`;
+        }
+
+        function onSelect(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            let clientX, clientY;
+            if (event.changedTouches && event.changedTouches.length > 0) {
+                clientX = event.changedTouches[0].clientX;
+                clientY = event.changedTouches[0].clientY;
+            } else if (event.clientX !== undefined) {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            } else {
+                return;
+            }
+            
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactables, false);
+
+            const infoPanel = document.getElementById('info-panel');
+
+            // Restaurar objeto anterior
+            if (selectedObj) {
+                restaurarColor(selectedObj);
+                selectedObj = null;
+            }
+
+            if (intersects.length > 0) {
+                const hit = intersects[0].object;
+                selectedObj = hit;
+                
+                // Resaltar nuevo objeto
+                resaltarObjeto(hit);
+                
+                // --- Actualizar y poblar información ---
+                infoPanel.classList.remove('edit-mode'); // Reset a modo display
+
+                const userData = hit.userData;
+                const name = userData.name || 'Elemento';
+                const type = userData.type || 'Sin tipo';
+                const mat = userData.mat || 'Sin material';
+                const dim = userData.dim || 'Sin dimensiones';
+                const note = userData.note || 'Sin notas';
+                
+                // Poblar campos de display
+                document.getElementById('p-name-display').textContent = name;
+                document.getElementById('p-type-display').textContent = type;
+                document.getElementById('p-mat-display').textContent = mat;
+                document.getElementById('p-dim-display').textContent = dim;
+                document.getElementById('p-note-display').textContent = note;
+
+                // Poblar campos de edición (para cuando se active)
+                document.getElementById('p-name-edit').value = name;
+                document.getElementById('p-type-edit').value = type;
+                document.getElementById('p-mat-edit').value = mat;
+                document.getElementById('p-dim-edit').value = dim;
+                document.getElementById('p-note-edit').value = note;
+
+                // Mostrar y posicionar el panel
+                infoPanel.style.display = 'block';
+                infoPanel.style.visibility = 'visible';
+                posicionarGlobo(clientX, clientY);
+                
+                // Agregar clase visible
+                setTimeout(() => {
+                    infoPanel.classList.add('visible');
+                }, 50);
+                
+            } else {
+                // Ocultar globo si se toca el fondo
+                infoPanel.classList.remove('visible');
+                infoPanel.classList.remove('edit-mode'); 
+                setTimeout(() => {
+                    if (!infoPanel.classList.contains('visible')) {
+                        infoPanel.style.display = 'none';
+                    }
+                }, 250);
+            }
+        }
+
+        // --- Lógica de Edición del Panel ---
+        const btnEdit = document.getElementById('btn-edit');
+        const btnSave = document.getElementById('btn-save');
+        const btnCancel = document.getElementById('btn-cancel');
+        const infoPanelEl = document.getElementById('info-panel');
+
+        btnEdit.addEventListener('click', () => {
+            if (selectedObj) {
+                const password = prompt("Para editar, por favor ingresa la contraseña:");
+                const correctPassword = "23128"; // Contraseña proporcionada por el usuario
+
+                if (password === correctPassword) {
+                    infoPanelEl.classList.add('edit-mode');
+                } else {
+                    alert("Contraseña incorrecta.");
+                }
+            }
+        });
+
+        btnCancel.addEventListener('click', () => {
+            infoPanelEl.classList.remove('edit-mode');
+            // Resetear valores de inputs a los originales por si el usuario escribió algo
+            if (selectedObj) {
+                const userData = selectedObj.userData;
+                document.getElementById('p-name-edit').value = userData.name || '';
+                document.getElementById('p-type-edit').value = userData.type || '';
+                document.getElementById('p-mat-edit').value = userData.mat || '';
+                document.getElementById('p-dim-edit').value = userData.dim || '';
+                document.getElementById('p-note-edit').value = userData.note || '';
+            }
+        });
+
+        btnSave.addEventListener('click', () => {
+            if (selectedObj) {
+                // Leer nuevos valores de los inputs
+                const newName = document.getElementById('p-name-edit').value;
+                const newType = document.getElementById('p-type-edit').value;
+                const newMat = document.getElementById('p-mat-edit').value;
+                const newDim = document.getElementById('p-dim-edit').value;
+                const newNote = document.getElementById('p-note-edit').value;
+
+                // Actualizar userData del objeto
+                selectedObj.userData.name = newName;
+                selectedObj.userData.type = newType;
+                selectedObj.userData.mat = newMat;
+                selectedObj.userData.dim = newDim;
+                selectedObj.userData.note = newNote;
+
+                // Actualizar el panel de display
+                document.getElementById('p-name-display').textContent = newName;
+                document.getElementById('p-type-display').textContent = newType;
+                document.getElementById('p-mat-display').textContent = newMat;
+                document.getElementById('p-dim-display').textContent = newDim;
+                document.getElementById('p-note-display').textContent = newNote;
+
+                // Salir del modo edición
+                infoPanelEl.classList.remove('edit-mode');
+            }
+        });
+
+
+        // Event listeners con captura
+        renderer.domElement.addEventListener('click', onSelect, true);
+        renderer.domElement.addEventListener('touchend', onSelect, { passive: false, capture: true });
+        
+        // Ocultar toast después de 5 segundos
+        setTimeout(() => {
+            const toast = document.getElementById('toast');
+            if (toast) {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.style.display = 'none', 500);
+            }
+        }, 5000);
+
+        const compass = document.getElementById('compass');
+
+        // --- ANIMACIÓN ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            // Actualizar brújula
+            if (compass) {
+                const cameraDirection = new THREE.Vector3();
+                camera.getWorldDirection(cameraDirection);
+                const angle = Math.atan2(cameraDirection.x, cameraDirection.z);
+
+                let scale = 0.9;
+                if (window.innerWidth <= 480) {
+                    scale = 0.7;
+                } else if (window.innerWidth <= 1024) {
+                    scale = 0.8;
+                }
+
+                compass.style.transform = `rotate(${angle}rad) scale(${scale})`;
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- RESPONSIVE ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

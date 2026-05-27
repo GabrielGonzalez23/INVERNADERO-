@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esquema de Automatización Hidropónica de Precisión</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse-flow {
+            0% { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+        }
+        .flow-line-active {
+            stroke-dasharray: 8, 4;
+            animation: pulse-flow 0.8s linear infinite;
+        }
+        .glass-panel {
+            background: rgba(10, 15, 30, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* Sliders styling */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+            box-shadow: 0 0 8px #10b981;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950">
+
+    <!-- Header Principal -->
+    <header class="border-b border-slate-900 bg-slate-950/90 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-4xl mx-auto px-4 py-3.5 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-white tracking-wide">Automatización Hidropónica</h1>
+                    <p class="text-[10px] text-slate-400">Esquema de Señales, Electrónica y Potencia Eléctrica</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 bg-slate-900/80 px-2.5 py-1 rounded-full border border-slate-800">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+                <span class="text-[10px] font-medium text-slate-300">Simulación Activa</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="max-w-4xl mx-auto px-4 py-4 flex-1 w-full grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+        
+        <!-- CONTROLES FLOTANTES/SUTILES (Izquierda) -->
+        <div class="md:col-span-4 space-y-4">
+            <div class="glass-panel p-4 rounded-2xl shadow-xl space-y-4">
+                <div class="border-b border-slate-900 pb-2">
+                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Ajuste de Variables</h2>
+                    <p class="text-[9px] text-slate-500">Desliza para simular y activar los relés y contactores</p>
+                </div>
+
+                <!-- pH -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-pink-400 font-medium">🧪 pH</span>
+                        <span class="font-mono bg-slate-900/80 px-1.5 py-0.5 rounded text-pink-300 text-[10px]" id="val-ph">6.00</span>
+                    </div>
+                    <input type="range" id="input-ph" min="4.0" max="9.0" step="0.1" value="6.0" oninput="updateSimulation()" class="w-full accent-pink-500 bg-slate-900 h-1.5 rounded-lg cursor-pointer">
+                </div>
+
+                <!-- EC -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-cyan-400 font-medium">⚡ Conductividad (EC)</span>
+                        <span class="font-mono bg-slate-900/80 px-1.5 py-0.5 rounded text-cyan-300 text-[10px]" id="val-ec">1.50</span>
+                    </div>
+                    <input type="range" id="input-ec" min="0.5" max="3.0" step="0.1" value="1.5" oninput="updateSimulation()" class="w-full accent-cyan-500 bg-slate-900 h-1.5 rounded-lg cursor-pointer">
+                </div>
+
+                <!-- Temp -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-amber-400 font-medium">🌡️ Temperatura</span>
+                        <span class="font-mono bg-slate-900/80 px-1.5 py-0.5 rounded text-amber-300 text-[10px]" id="val-temp">22.0 °C</span>
+                    </div>
+                    <input type="range" id="input-temp" min="10.0" max="35.0" step="0.5" value="22.0" oninput="updateSimulation()" class="w-full accent-amber-500 bg-slate-900 h-1.5 rounded-lg cursor-pointer">
+                </div>
+
+                <!-- DO -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-blue-400 font-medium">🌀 Oxígeno Disuelto</span>
+                        <span class="font-mono bg-slate-900/80 px-1.5 py-0.5 rounded text-blue-300 text-[10px]" id="val-do">7.5 mg/L</span>
+                    </div>
+                    <input type="range" id="input-do" min="2.0" max="12.0" step="0.2" value="7.5" oninput="updateSimulation()" class="w-full accent-blue-500 bg-slate-900 h-1.5 rounded-lg cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Explicación Técnica Flotante (Pequeña y sutil) -->
+            <div class="glass-panel p-4 rounded-2xl text-[11px] text-slate-400 space-y-2.5">
+                <div class="flex items-center gap-2 text-white font-bold text-xs border-b border-slate-900 pb-1.5">
+                    <span>📢 Nota de Ingeniería</span>
+                </div>
+                <p class="leading-relaxed">
+                    Las cargas inductivas y térmicas de alto amperaje (<span class="text-amber-400">Calentador y Chiller</span>) necesitan <strong class="text-rose-400">Contactores de Potencia</strong> para aislar y proteger los pequeños relés de control del ESP32. Las bombas peristálticas de baja potencia operan directamente desde los relés.
+                </p>
+                <div class="pt-1.5 border-t border-slate-900 flex justify-between text-[10px]">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Con contactor</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-600"></span> Directo al relé</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- DIAGRAMA LIMPIO Y VERTICAL (Centro/Derecha) -->
+        <div class="md:col-span-8 glass-panel p-4 rounded-2xl shadow-2xl relative overflow-x-auto">
+            
+            <div class="relative min-w-[580px] py-4">
+                
+                <!-- SVG de Conexiones Dinámicas -->
+                <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 0;" id="svg-wires">
+                    <!-- Sensor -> Interfaz -->
+                    <path id="wire-ph-amp" d="M 75,55 L 75,115" fill="none" stroke="#1e293b" stroke-width="2" />
+                    <path id="wire-ec-amp" d="M 215,55 L 215,115" fill="none" stroke="#1e293b" stroke-width="2" />
+                    <path id="wire-do-amp" d="M 495,55 L 495,115" fill="none" stroke="#1e293b" stroke-width="2" />
+                    
+                    <!-- Interfaz -> ESP32 -->
+                    <path id="wire-ph-esp" d="M 75,155 L 75,190 L 230,190 L 230,215" fill="none" stroke="#1e293b" stroke-width="2" />
+                    <path id="wire-ec-esp" d="M 215,155 L 215,215" fill="none" stroke="#1e293b" stroke-width="2" />
+                    <path id="wire-temp-esp" d="M 355,55 L 355,215" fill="none" stroke="#1e293b" stroke-width="2" />
+                    <path id="wire-do-esp" d="M 495,155 L 495,190 L 320,190 L 320,215" fill="none" stroke="#1e293b" stroke-width="2" />
+
+                    <!-- ESP32 -> Relés -->
+                    <path id="wire-esp-relays" d="M 285,270 L 285,315" fill="none" stroke="#1e293b" stroke-width="2.5" />
+
+                    <!-- Relés -> Actuadores / Contactores -->
+                    <path id="wire-r1" d="M 50,370 L 50,545" fill="none" stroke="#1e293b" stroke-width="2" />
+                    <path id="wire-r2" d="M 140,370 L 140,545" fill="none" stroke="#1e293b" stroke-width="2" />
+                    <path id="wire-r3" d="M 230,370 L 230,545" fill="none" stroke="#1e293b" stroke-width="2" />
+                    
+                    <!-- Relés -> Contactores -->
+                    <path id="wire-r4" d="M 320,370 L 320,425" fill="none" stroke="#1e293b" stroke-width="2" />
+                    <path id="wire-r5" d="M 410,370 L 410,425" fill="none" stroke="#1e293b" stroke-width="2" />
+                    
+                    <!-- Relé -> Oxigenador -->
+                    <path id="wire-r6" d="M 530,370 L 530,545" fill="none" stroke="#1e293b" stroke-width="2" />
+
+                    <!-- Contactores -> Actuadores de Potencia -->
+                    <path id="wire-c4" d="M 320,475 L 320,545" fill="none" stroke="#1e293b" stroke-width="2" />
+                    <path id="wire-c5" d="M 410,475 L 410,545" fill="none" stroke="#1e293b" stroke-width="2" />
+                </svg>
+
+                <!-- BLOQUE 1: SENSORES (Captación Física) -->
+                <div class="grid grid-cols-4 gap-4 relative z-10">
+                    <div class="bg-slate-900/90 border border-pink-500/20 rounded-xl p-2.5 text-center shadow-lg">
+                        <span class="text-xl block">🧪</span>
+                        <span class="text-[10px] font-bold text-pink-400 block mt-1">Sensor pH</span>
+                        <span class="text-[8px] text-slate-500 font-mono">mV Analógico</span>
+                    </div>
+                    <div class="bg-slate-900/90 border border-cyan-500/20 rounded-xl p-2.5 text-center shadow-lg">
+                        <span class="text-xl block">⚡</span>
+                        <span class="text-[10px] font-bold text-cyan-400 block mt-1">Sensor EC</span>
+                        <span class="text-[8px] text-slate-500 font-mono">AC Analógica</span>
+                    </div>
+                    <div class="bg-slate-900/90 border border-amber-500/20 rounded-xl p-2.5 text-center shadow-lg">
+                        <span class="text-xl block">🌡️</span>
+                        <span class="text-[10px] font-bold text-amber-400 block mt-1">Temp. Agua</span>
+                        <span class="text-[8px] text-slate-500 font-mono">Digital 1-Wire</span>
+                    </div>
+                    <div class="bg-slate-900/90 border border-blue-500/20 rounded-xl p-2.5 text-center shadow-lg">
+                        <span class="text-xl block">🌀</span>
+                        <span class="text-[10px] font-bold text-blue-400 block mt-1">Sonda DO</span>
+                        <span class="text-[8px] text-slate-500 font-mono">Corriente uA</span>
+                    </div>
+                </div>
+
+                <div class="h-14"></div>
+
+                <!-- BLOQUE 2: ACONDICIONADORES (Hardware Electrónico) -->
+                <div class="grid grid-cols-4 gap-4 relative z-10">
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2 text-center text-xs">
+                        <span class="text-pink-300 font-semibold block text-[10px]">Acondicionador pH</span>
+                        <span class="text-[8px] text-slate-500 block mt-0.5">Adaptador Impedancia</span>
+                    </div>
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2 text-center text-xs">
+                        <span class="text-cyan-300 font-semibold block text-[10px]">Transmisor EC</span>
+                        <span class="text-[8px] text-slate-500 block mt-0.5">Filtro AC a DC</span>
+                    </div>
+                    <div class="flex items-center justify-center text-[9px] text-slate-600 italic">
+                        Línea Directa Digital
+                    </div>
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2 text-center text-xs">
+                        <span class="text-blue-300 font-semibold block text-[10px]">Amplificador DO</span>
+                        <span class="text-[8px] text-slate-500 block mt-0.5">Convertidor I a V</span>
+                    </div>
+                </div>
+
+                <div class="h-14"></div>
+
+                <!-- BLOQUE 3: PROCESAMIENTO (ESP32) -->
+                <div class="flex justify-center relative z-10">
+                    <div class="bg-slate-900 border-2 border-emerald-500/30 rounded-2xl p-3 w-3/5 flex items-center justify-between shadow-lg shadow-emerald-500/5">
+                        <div class="text-left">
+                            <span class="bg-emerald-500/10 text-emerald-400 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase">CEREBRO</span>
+                            <h4 class="text-xs font-bold text-white mt-1">Microcontrolador ESP32</h4>
+                            <p class="text-[8px] text-slate-500">Muestreo ADC, Filtrado Digital y Control Lógico</p>
+                        </div>
+                        <span class="text-2xl">⚙️</span>
+                    </div>
+                </div>
+
+                <div class="h-12"></div>
+
+                <!-- BLOQUE 4: RELÉS (Aislamiento Galvánico) -->
+                <div class="flex justify-center relative z-10">
+                    <div class="bg-slate-900 border border-violet-500/30 rounded-xl p-2.5 w-11/12 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🔌</span>
+                            <div class="text-left">
+                                <h4 class="text-[11px] font-bold text-violet-300">Placa de Relés Optoacoplados (Salidas de 3.3V / Control de Potencia)</h4>
+                                <p class="text-[8px] text-slate-500">Evita ruidos electromagnéticos e inducción de retorno al ESP32</p>
+                            </div>
+                        </div>
+                        <span class="text-[8px] bg-violet-950 text-violet-300 px-1.5 py-0.5 rounded font-mono font-bold">OPTOACOPLADO</span>
+                    </div>
+                </div>
+
+                <div class="h-12"></div>
+
+                <!-- BLOQUE 4.5: CONTACTORES DE POTENCIA (PROTECCIÓN DE CARGAS ALTAS) -->
+                <!-- Aquí demostramos dónde se necesitan contactores -->
+                <div class="grid grid-cols-6 gap-2 relative z-10">
+                    <div class="col-span-3 flex items-center justify-center text-[9px] text-slate-600 italic">
+                        Control Directo a Motores de 12V
+                    </div>
+                    
+                    <!-- Contactor para Chiller (R4) -->
+                    <div id="contactor-chiller" class="bg-slate-900 border border-rose-500/20 rounded-xl p-1.5 text-center transition-colors">
+                        <span class="text-[9px] font-bold text-rose-400 block">Contactor K1</span>
+                        <span class="text-[7px] text-slate-500 block">Soporta picos de Arranque</span>
+                        <span class="text-[7px] bg-slate-950 text-slate-500 px-1 rounded block mt-1 font-mono" id="badge-k1">ABIERTO</span>
+                    </div>
+
+                    <!-- Contactor para Calentador (R5) -->
+                    <div id="contactor-heater" class="bg-slate-900 border border-rose-500/20 rounded-xl p-1.5 text-center transition-colors">
+                        <span class="text-[9px] font-bold text-rose-400 block">Contactor K2</span>
+                        <span class="text-[7px] text-slate-500 block">Soporta cargas térmicas</span>
+                        <span class="text-[7px] bg-slate-950 text-slate-500 px-1 rounded block mt-1 font-mono" id="badge-k2">ABIERTO</span>
+                    </div>
+
+                    <div class="col-span-1 flex items-center justify-center text-[9px] text-slate-600 italic">
+                        Directo
+                    </div>
+                </div>
+
+                <div class="h-12"></div>
+
+                <!-- BLOQUE 5: ACTUADORES FÍSICOS (Salida) -->
+                <div class="grid grid-cols-6 gap-2.5 relative z-10">
+                    
+                    <!-- R1: pH Down -->
+                    <div id="act-phdown" class="bg-slate-900 border border-slate-800 rounded-xl p-2 text-center transition-all duration-300">
+                        <span class="text-lg block opacity-40" id="icon-phdown">💧</span>
+                        <span class="text-[9px] font-bold text-slate-400 block mt-0.5">Bomba pH-</span>
+                        <span class="text-[7px] bg-slate-950 text-slate-500 px-1 rounded mt-1 block font-mono" id="badge-phdown">APAGADO</span>
+                    </div>
+
+                    <!-- R2: pH Up -->
+                    <div id="act-phup" class="bg-slate-900 border border-slate-800 rounded-xl p-2 text-center transition-all duration-300">
+                        <span class="text-lg block opacity-40" id="icon-phup">💧</span>
+                        <span class="text-[9px] font-bold text-slate-400 block mt-0.5">Bomba pH+</span>
+                        <span class="text-[7px] bg-slate-950 text-slate-500 px-1 rounded mt-1 block font-mono" id="badge-phup">APAGADO</span>
+                    </div>
+
+                    <!-- R3: Nutrientes -->
+                    <div id="act-nut" class="bg-slate-900 border border-slate-800 rounded-xl p-2 text-center transition-all duration-300">
+                        <span class="text-lg block opacity-40" id="icon-nut">🧪</span>
+                        <span class="text-[9px] font-bold text-slate-400 block mt-0.5">Nutrientes</span>
+                        <span class="text-[7px] bg-slate-950 text-slate-500 px-1 rounded mt-1 block font-mono" id="badge-nut">APAGADO</span>
+                    </div>
+
+                    <!-- R4: Chiller (Fuerza) -->
+                    <div id="act-chiller" class="bg-slate-900 border border-slate-800 rounded-xl p-2 text-center transition-all duration-300">
+                        <span class="text-lg block opacity-40" id="icon-chiller">❄️</span>
+                        <span class="text-[9px] font-bold text-slate-400 block mt-0.5">Chiller</span>
+                        <span class="text-[7px] bg-slate-950 text-slate-500 px-1 rounded mt-1 block font-mono" id="badge-chiller">APAGADO</span>
+                    </div>
+
+                    <!-- R5: Calentador (Fuerza) -->
+                    <div id="act-heater" class="bg-slate-900 border border-slate-800 rounded-xl p-2 text-center transition-all duration-300">
+                        <span class="text-lg block opacity-40" id="icon-heater">🔥</span>
+                        <span class="text-[9px] font-bold text-slate-400 block mt-0.5">Calentador</span>
+                        <span class="text-[7px] bg-slate-950 text-slate-500 px-1 rounded mt-1 block font-mono" id="badge-heater">APAGADO</span>
+                    </div>
+
+                    <!-- R6: Oxigenador -->
+                    <div id="act-oxy" class="bg-slate-900 border border-slate-800 rounded-xl p-2 text-center transition-all duration-300">
+                        <span class="text-lg block opacity-40" id="icon-oxy">🫧</span>
+                        <span class="text-[9px] font-bold text-slate-400 block mt-0.5">Oxígeno</span>
+                        <span class="text-[7px] bg-slate-950 text-slate-500 px-1 rounded mt-1 block font-mono" id="badge-oxy">APAGADO</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer Fijo -->
+    <footer class="border-t border-slate-900 bg-slate-950 py-3 text-center text-[10px] text-slate-600">
+        Diseño optimizado de precisión. Monitoreo directo en tiempo real.
+    </footer>
+
+    <!-- LÓGICA DE SIMULACIÓN -->
+    <script>
+        function updateSimulation() {
+            const ph = parseFloat(document.getElementById('input-ph').value);
+            const ec = parseFloat(document.getElementById('input-ec').value);
+            const temp = parseFloat(document.getElementById('input-temp').value);
+            const o2 = parseFloat(document.getElementById('input-do').value);
+
+            document.getElementById('val-ph').innerText = ph.toFixed(2);
+            document.getElementById('val-ec').innerText = ec.toFixed(2) + " mS/cm";
+            document.getElementById('val-temp').innerText = temp.toFixed(1) + " °C";
+            document.getElementById('val-do').innerText = o2.toFixed(1) + " mg/L";
+
+            // Lógica
+            const activePhDown = ph > 6.5;
+            const activePhUp = ph < 5.5;
+            const activeNutrients = ec < 1.2;
+            const activeChiller = temp > 24.0;
+            const activeHeater = temp < 18.0;
+            const activeOxygen = o2 < 5.0;
+
+            // Renderizar actuadores
+            toggleActuator('act-phdown', 'icon-phdown', 'badge-phdown', activePhDown, "💧", "pink");
+            toggleActuator('act-phup', 'icon-phup', 'badge-phup', activePhUp, "💧", "pink");
+            toggleActuator('act-nut', 'icon-nut', 'badge-nut', activeNutrients, "🧪", "cyan");
+            toggleActuator('act-chiller', 'icon-chiller', 'badge-chiller', activeChiller, "❄️", "amber");
+            toggleActuator('act-heater', 'icon-heater', 'badge-heater', activeHeater, "🔥", "amber");
+            toggleActuator('act-oxy', 'icon-oxy', 'badge-oxy', activeOxygen, "🫧", "blue");
+
+            // Renderizar Contactores
+            toggleContactor('contactor-chiller', 'badge-k1', activeChiller);
+            toggleContactor('contactor-heater', 'badge-k2', activeHeater);
+
+            // Cables superiores
+            animateWire('wire-ph-amp', true, 'pink');
+            animateWire('wire-ph-esp', true, 'pink');
+            animateWire('wire-ec-amp', true, 'cyan');
+            animateWire('wire-ec-esp', true, 'cyan');
+            animateWire('wire-temp-esp', true, 'amber');
+            animateWire('wire-do-amp', true, 'blue');
+            animateWire('wire-do-esp', true, 'blue');
+
+            // Cable relé central
+            const anyActuator = activePhDown || activePhUp || activeNutrients || activeChiller || activeHeater || activeOxygen;
+            animateWire('wire-esp-relays', anyActuator, 'violet');
+
+            // Cables de relé a actuadores/contactores
+            animateWire('wire-r1', activePhDown, 'pink');
+            animateWire('wire-r2', activePhUp, 'pink');
+            animateWire('wire-r3', activeNutrients, 'cyan');
+            animateWire('wire-r4', activeChiller, 'amber');
+            animateWire('wire-r5', activeHeater, 'amber');
+            animateWire('wire-r6', activeOxygen, 'blue');
+
+            // Cables de contactor a actuadores grandes
+            animateWire('wire-c4', activeChiller, 'rose');
+            animateWire('wire-c5', activeHeater, 'rose');
+        }
+
+        function toggleActuator(blockId, iconId, badgeId, isActive, iconChar, colorTheme) {
+            const block = document.getElementById(blockId);
+            const icon = document.getElementById(iconId);
+            const badge = document.getElementById(badgeId);
+
+            let borderClass = 'border-slate-800';
+            let shadowClass = '';
+            let textClass = 'text-slate-500';
+
+            if (isActive) {
+                switch (colorTheme) {
+                    case 'pink': borderClass = 'border-pink-500'; shadowClass = 'shadow-[0_0_10px_rgba(236,72,153,0.15)]'; textClass = 'text-pink-400 font-bold'; break;
+                    case 'cyan': borderClass = 'border-cyan-500'; shadowClass = 'shadow-[0_0_10px_rgba(6,182,212,0.15)]'; textClass = 'text-cyan-400 font-bold'; break;
+                    case 'amber': borderClass = 'border-amber-500'; shadowClass = 'shadow-[0_0_10px_rgba(245,158,11,0.15)]'; textClass = 'text-amber-400 font-bold'; break;
+                    case 'blue': borderClass = 'border-blue-500'; shadowClass = 'shadow-[0_0_10px_rgba(59,130,246,0.15)]'; textClass = 'text-blue-400 font-bold'; break;
+                }
+                block.className = `bg-slate-900 border-2 ${borderClass} ${shadowClass} rounded-xl p-2 text-center transition-all scale-102`;
+                icon.className = "text-lg block opacity-100 animate-bounce";
+                badge.className = `text-[7px] bg-slate-950 ${textClass} px-1 rounded mt-1 block font-mono font-bold`;
+                badge.innerText = "ACTIVO";
+            } else {
+                block.className = "bg-slate-900 border border-slate-800 rounded-xl p-2 text-center transition-all";
+                icon.className = "text-lg block opacity-20";
+                badge.className = "text-[7px] bg-slate-950 text-slate-600 px-1 rounded mt-1 block font-mono";
+                badge.innerText = "APAGADO";
+            }
+        }
+
+        function toggleContactor(blockId, badgeId, isActive) {
+            const block = document.getElementById(blockId);
+            const badge = document.getElementById(badgeId);
+
+            if (isActive) {
+                block.className = "bg-slate-900 border-2 border-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.2)] rounded-xl p-1.5 text-center transition-colors scale-102";
+                badge.className = "text-[7px] bg-rose-950 text-rose-400 px-1 rounded block mt-1 font-mono font-bold";
+                badge.innerText = "CERRADO";
+            } else {
+                block.className = "bg-slate-900 border border-slate-800 rounded-xl p-1.5 text-center transition-colors";
+                badge.className = "text-[7px] bg-slate-950 text-slate-500 px-1 rounded block mt-1 font-mono";
+                badge.innerText = "ABIERTO";
+            }
+        }
+
+        function animateWire(wireId, isActive, color) {
+            const wire = document.getElementById(wireId);
+            if (!wire) return;
+
+            let colorHex = '#1e293b'; // slate-800
+            if (isActive) {
+                switch(color) {
+                    case 'pink': colorHex = '#ec4899'; break;
+                    case 'cyan': colorHex = '#06b6d4'; break;
+                    case 'amber': colorHex = '#f59e0b'; break;
+                    case 'blue': colorHex = '#3b82f6'; break;
+                    case 'violet': colorHex = '#8b5cf6'; break;
+                    case 'rose': colorHex = '#f43f5e'; break;
+                }
+                wire.setAttribute('stroke', colorHex);
+                wire.classList.add('flow-line-active');
+            } else {
+                wire.setAttribute('stroke', '#1e293b');
+                wire.classList.remove('flow-line-active');
+            }
+        }
+
+        window.onload = function() {
+            updateSimulation();
+        }
+    </script>
+</body>
+</html>
